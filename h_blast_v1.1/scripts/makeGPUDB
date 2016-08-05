@@ -1,0 +1,143 @@
+#!/bin/bash
+# H-BLAST Multiple CPUs/GPUs aligner driver -  a script for lanuching multiple 
+#          H-BLAST instances, each instance using one GPU card and serval
+#          CPU threads.
+#
+#  Version 0.1 (July 25, 2016)
+#
+#  Copyright (c) 2015-2016 Weicai Ye
+#
+#  This software is provided 'as-is', without any express or implied
+#  warranty. In no event will the authors be held liable for any damages
+#  arising from the use of this software.
+
+
+function usage()
+{
+	echo
+	echo "makeGPUdb is for creating a H-BLAST format database used in GPUs." 
+	echo 
+	echo "An example of makeGPUDB usage:"
+	echo $0" -db nr -gpu_threads 64  -gpu_blocks 512"
+	echo 
+	echo -e "The output of above comand are \"nr.hDBI\" and \"nr.hDB\""
+	echo "if there is only one volume in nr; otherwise, "
+	echo "\"nr.hDBI\", \"nr.01.hDB\"...\"nr.*.hDB\" will be out." 
+	echo 
+	echo "Options of makeGPUdb are:"
+	echo -e " -db <String>"
+	echo -e "   the name of the database to be converted." 
+	echo -e " -gpu_threads <Integer, 1..65536>" 
+	echo -e "   Number of GPU threads per block"
+	echo -e "     Default = '192'"
+	echo -e " -gpu_blocks <Integer, 1..65536>"
+	echo -e "   Number of GPU blocks per grid"
+	echo -e "     Default = '512'"
+	echo
+}
+
+
+
+function getScriptLocation()
+{
+	SOURCE="$0"
+	while [ -h "$SOURCE"  ]; do # resolve $SOURCE until the file is no longer a symlink
+	    DIR="$( cd -P "$( dirname "$SOURCE"  )" && pwd  )"
+	    SOURCE="$(readlink "$SOURCE")"
+	    [[ $SOURCE != /*  ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+	done
+	DIR="$( cd -P "$( dirname "$SOURCE"  )" && pwd  )"
+	echo $DIR
+}
+
+db=""
+flag=0
+gputhreads=192
+gpublocks=512
+
+for arg in "$@"
+do
+	if [ $arg == "-help" ];then
+		usage		
+		exit 1
+	fi
+
+	if [ $arg == "-db" ];then
+		flag=1
+		continue
+	fi
+
+	if [ $arg == "-gpu_threads" ];then
+		flag=2
+		continue
+	fi
+
+	if [ $arg == "-gpu_blocks" ];then
+		flag=3
+		continue
+	fi
+
+
+	case ${flag} in 
+		0)
+		 outstring=${outstring}" "$arg
+			;;
+		1)	db=${arg}	
+			flag=0 
+			;;
+		2)	gputhreads=$arg
+			flag=0 
+			;;
+		3)	gpublocks=$arg	
+			flag=0 
+			;;
+		?)	
+		flag=0 
+			;;
+         esac
+
+	
+done
+
+
+###################################### syntax checking  !!!!!!!!!!!!!!!!!!!!!!!!!
+if [ here${db} == here ]; then
+	echo "The value of the parameter \"-db\" can not be empty!"
+	exit 1	
+fi
+
+
+task=$(getScriptLocation)/H-BLASTP
+
+
+if [ ! -f ${task} ]; then
+	echo -e "The executable \"H-BLASTP\" is not found at"
+	echo $(getScriptLocation)
+	exit 1
+fi
+
+query=""
+out=""
+
+if [ -f "H-BLASTPSTRING" ]; then
+	query="H-BLASTPSTRING-home"
+	out="H-BLASTPSTRING-home_out"
+else
+	query="H-BLASTPSTRING"
+	out="H-BLASTPSTRING_out"	
+fi
+
+
+echo AAAAA > $query
+
+command=${task}" -method -1 -gpu 1 -query ${query} -out ${out} -db ${db} -gpu_threads ${gputhreads}  -gpu_blocks ${gpublocks}"
+ 
+${command}
+
+rm $query
+#if [ -f ${db}.hDBI ]; then
+rm $out
+#fi
+
+
+

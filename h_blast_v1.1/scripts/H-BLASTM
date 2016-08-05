@@ -1,0 +1,310 @@
+#!/bin/bash
+# H-BLAST Multiple CPUs/GPUs aligner driver -  a script for lanuching multiple 
+#          H-BLAST instances, each instance using one GPU card and serval
+#          CPU threads.
+#
+#  Version 0.3 (July 25, 2016)
+#
+#  Copyright (c) 2015-2016 Weicai Ye
+#
+#  This software is provided 'as-is', without any express or implied
+#  warranty. In no event will the authors be held liable for any damages
+#  arising from the use of this software.
+
+
+function usage()
+{
+	echo
+	echo "H-BLASTM, an aligner driver for accelerating BLASTP and BLASTX searching" 
+	echo "  with the H-BLAST searching module using multiply CPU cores and GPU "  
+	echo "  cards."
+	echo 
+	echo "An example of H-BLASTM usage:"
+	echo -e $0" -module blastp -query 4Sequence.txt -db nr -out ra -gpu_cards 2\\"
+	echo  "  -num_threads 4 -screen_out check.log"
+	echo 
+	echo "Options of H-BLASTM are identical to NCBI-BLAST"
+	echo "with additional options:"
+	echo -e " -module <String, Permissible values: 'blastp' 'blastx'> "
+	echo -e "   The module to be executed."
+	echo -e "     Default = 'blastp'" 
+	echo -e " -gpu_cards <Integer, 1..8> "
+	echo -e "   Use the no. of GPU cards to accelerate BLASTX/BLASTP"
+	echo -e "     Default = '1'" 
+	echo -e " -screen_out check <String>"
+	echo -e "   The file is to log all screen out, including stdout and stderr,"
+	echo -e "   for error checking."
+	echo -e "     Default = \"outfile\""
+	echo
+}
+
+function getScriptLocation()
+{
+	SOURCE="$0"
+	while [ -h "$SOURCE"  ]; do # resolve $SOURCE until the file is no longer a symlink
+	    DIR="$( cd -P "$( dirname "$SOURCE"  )" && pwd  )"
+	    SOURCE="$(readlink "$SOURCE")"
+	    [[ $SOURCE != /*  ]] && SOURCE="$DIR/$SOURCE" # if $SOURCE was a relative symlink, we need to resolve it relative to the path where the symlink file was located
+	done
+	DIR="$( cd -P "$( dirname "$SOURCE"  )" && pwd  )"
+	echo $DIR
+}
+
+outstring=""
+flag=0
+query=""
+outFile=""
+thread=1
+gpuCards=1
+module="blastp"
+gpuId=""
+method=1
+screenOut="outfile"
+
+for arg in "$@"
+do
+	if [ $arg == "-help" ];then
+		usage		
+		exit 1
+	fi
+
+	if [ $arg == "-query" ];then
+		flag=1
+		continue
+	fi
+
+	if [ $arg == "-out" ];then
+		flag=2
+		continue
+	fi
+
+	if [ $arg == "-num_threads" ];then
+		flag=3
+		continue
+	fi
+
+	if [ $arg == "-gpu_cards" ];then
+		flag=4
+		continue
+	fi
+
+	if [ $arg == "-module" ];then
+		flag=5
+		continue
+	fi
+
+	if [ $arg == "-gpu" ];then
+		flag=6
+		continue
+	fi
+
+	if [ $arg == "-method" ];then
+		flag=7
+		continue
+	fi
+
+	if [ $arg == "-screen_out" ];then
+		flag=8
+		continue
+	fi
+
+
+	case ${flag} in 
+		0)
+		 outstring=${outstring}" "$arg
+			;;
+		1)	query=${arg}	
+			flag=0 
+			;;
+		2)	outFile=$arg
+			flag=0 
+			;;
+		3)	thread=$arg	
+			flag=0 
+			;;
+		4)	gpuCards=$arg	
+			flag=0 
+			;;
+		5)	module=$arg	
+			flag=0 
+			;;
+		6)	gpuId=$arg	
+			flag=0 
+			;;
+		7)	method=$arg	
+			flag=0 
+			;;
+		8)	screenOut=$arg	
+			flag=0 
+			;;
+		?)	
+		flag=0 
+			;;
+         esac
+
+	
+done
+
+
+###################################### syntax checking  !!!!!!!!!!!!!!!!!!!!!!!!!
+if [ ${gpuId} ]; then
+	echo -e "The parameter \"-gpu\" is illegal!"
+	exit 1	
+fi
+
+
+if [ ${module} ]; then
+	if [ ${module} == "blastp" ]; then
+		module=$(getScriptLocation)/H-BLASTP
+		echo ${module}		
+		if [ ! -f "${module}" ]; then
+			echo -e "The executable \"H-BLASTP\" is not found at"
+			echo $(getScriptLocation)
+			exit 1
+		fi
+
+	elif [ ${module} == "blastx" ]; then
+		module=$(getScriptLocation)/H-BLASTX		
+		if [ ! -f "${module}" ]; then
+			echo -e "The executable \"H-BLASTX\" is not found at"
+			echo $(getScriptLocation)
+			exit 1
+		fi
+	else
+		echo -e "The value of parameter \"-module\" is not correct!"
+		echo "Permissible values: 'blastp' 'blastx'"
+		exit 1
+	fi
+fi
+
+
+if [ ${method} != 1 ]; then
+	echo -e "The parameter \"-method\" must be 1!"
+	exit 1	
+fi
+
+if [ ${thread} -lt ${gpuCards} ]; then
+	echo -e "The value of the parameter \"-num_threads\" must be greater than that of \"-gpu_cards\"!"
+	exit 1	
+fi
+
+cpuPerGpu=`expr ${thread} / ${gpuCards}`
+usedCPU=`expr ${cpuPerGpu} \* ${gpuCards}`
+
+if [ ${thread} -ne ${usedCPU} ]; then
+	echo -e "The value of the parameter \"-num_threads\" must be multipy of that of \"-gpu_cards\"!"
+	exit 1	
+fi
+
+if [ -z ${module} ]; then
+	echo -e "The value of the parameter \"-module\" can not be empty!"
+	exit 1	
+fi
+
+
+###################################### split the input fasta file  !!!!!!!!!!!!!!!!!!!!!!!!!
+if [ ! -f "./fasta-splitterA.pl" ]; then 
+	echo -e "The file fasta-splitterA.pl is not found!\n"
+	exit 1
+fi
+
+
+tmpIn=`./fasta-splitterA.pl --n-parts ${gpuCards} ${query} | tee xx | grep "OutputPrefix" |cut -d":" -f2`
+cat xx
+rm xx
+
+if [ ! -f "$tmpIn.part-1" ]; then 
+	echo -e "The splitted query is not found!\n"
+	exit 1
+fi
+
+
+echo 
+
+###################################### do BLAST search  !!!!!!!!!!!!!!!!!!!!!!!!!
+echo "The BLAST search begins!..."
+
+command=${module}" "${outstring}" -method 1 -num_threads $cpuPerGpu"
+
+for (( c=1; c<=${gpuCards}; c++ ))
+do
+	${command} -gpu $c -query ${tmpIn}.part-$c -out ${outFile}.part-$c &> ${screenOut}_${c} & 
+done
+
+wait
+
+###################################### merge results  !!!!!!!!!!!!!!!!!!!!!!!!!
+
+if [ -f "${outFile}" ]; then 
+	rm ${outFile}
+fi
+
+if [ -f "${screenOut}" ]; then 
+	rm ${screenOut}
+fi
+
+blastpFlag=`grep "BLASTP" ${outFile}".part-1"  |wc -l`
+blastxFlag=`grep "BLASTX" ${outFile}".part-1"  |wc -l`
+
+
+if [ ${blastpFlag} -gt 0 ]; then 
+	echo "The BLAST search ends!"
+	echo -e "Merge results..."
+	if [ ${gpuCards} -gt 1 ]; then
+		for (( c=1; c<=${gpuCards}; c++ ))
+		do
+			rm ${tmpIn}".part-$c"
+			if [  $c -gt 1 ] && [ $c -lt ${gpuCards} ]; then
+				sed '1,23 d' ${outFile}".part-$c" | sed '$d' |  sed '$d' |  sed '$d' | sed '$d' | sed '$d' |  sed '$d' |  sed '$d' | sed '$d' | sed '$d' |  sed '$d' |  sed '$d' >> ${outFile}
+			elif [ $c -eq ${gpuCards} ]; then
+				sed '1,23 d' ${outFile}".part-$c" >> ${outFile}
+			else
+				sed '$d' ${outFile}".part-$c" | sed '$d' |  sed '$d' |  sed '$d' | sed '$d' |  sed '$d' |  sed '$d' | sed '$d' | sed '$d' |  sed '$d' |  sed '$d' >> ${outFile}
+			fi	
+			rm ${outFile}".part-$c"
+			cat ${screenOut}_${c}>>${screenOut}
+			rm ${screenOut}_${c}
+		done
+	else
+		rm ${tmpIn}".part-1"
+		mv ${outFile}".part-1" ${outFile}
+		mv ${screenOut}_1 ${screenOut}
+	fi
+elif [ ${blastxFlag} -gt 0 ]; then
+	echo "The BLAST search ends!"
+	echo -e "Merge results..." 
+	if [ ${gpuCards} -gt 1 ]; then
+		for (( c=1; c<=${gpuCards}; c++ ))
+		do
+			rm ${tmpIn}".part-$c"
+			if [  $c -gt 1 ] && [ $c -lt ${gpuCards} ]; then
+				sed '1,15 d' ${outFile}".part-$c" | sed '$d' |  sed '$d' |  sed '$d' | sed '$d' | sed '$d' |  sed '$d' |  sed '$d' | sed '$d' | sed '$d' |  sed '$d' |  sed '$d' >> ${outFile}
+			elif [ $c -eq ${gpuCards} ]; then
+				sed '1,15 d' ${outFile}".part-$c" >> ${outFile}
+			else
+				sed '$d' ${outFile}".part-$c" | sed '$d' |  sed '$d' |  sed '$d' | sed '$d' |  sed '$d' |  sed '$d' | sed '$d' | sed '$d' |  sed '$d' |  sed '$d' >> ${outFile}
+			fi	
+			rm ${outFile}".part-$c"
+			cat ${screenOut}_${c}>>${screenOut}
+			rm ${screenOut}_${c}
+		done
+	else
+		rm ${tmpIn}".part-1"
+		mv ${outFile}".part-1" ${outFile}
+		mv ${screenOut}_1 ${screenOut}
+	fi
+else
+	echo "Error, please check the srceen output file ${screenOut}"
+	for (( c=1; c<=${gpuCards}; c++ ))
+	do 
+		rm ${tmpIn}".part-$c"
+		cat ${screenOut}_${c}>>${screenOut}
+		rm ${screenOut}_${c}
+	done
+	exit 1
+fi 
+
+
+echo "All set!"
+
+

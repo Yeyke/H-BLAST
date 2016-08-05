@@ -1,0 +1,31 @@
+# $Id: Makefile.in 371962 2012-08-14 09:45:56Z coulouri $
+
+# Meta-makefile("APP" project)
+#################################
+
+REQUIRES = objects algo
+
+LIB_PROJ = blast_app_util
+
+APP_PROJ = \
+blastp \
+blastx
+
+USR_PROJ = legacy_blast update_blastdb
+
+srcdir = @srcdir@
+include @builddir@/Makefile.meta
+
+.PHONY: all $(APP_PROJ)
+
+lib:
+	${MAKE} ${MFLAGS} -f Makefile.blast_app_util_lib
+blastp: lib
+	${MAKE} ${MFLAGS} -f Makefile.blastp_app
+blastx: lib
+	${MAKE} ${MFLAGS} -f Makefile.blastx_app
+blast_formatter: lib
+	${MAKE} ${MFLAGS} -f Makefile.blast_formatter_app
+
+
+

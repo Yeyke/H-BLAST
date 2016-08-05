@@ -1,0 +1,310 @@
+************************ H-BLAST v1.1 release [July. 25, 2016] ******************
+Heterogeneous BLAST (H-BLAST) is a fast parallel search tool for a 
+heterogeneous computer that couples CPUs and GPUs, to accelerate 
+BLASTX and BLASTP - basic modules of NCBI-BLAST. H-BLAST employs a 
+locally decoupled seed-extension algorithm to take advantages of 
+GPUs, and offers a performance tuning mechanism for better efficiency 
+among various CPUs and GPUs combinations. H-BLAST produces identical 
+alignment results as NCBI-BLAST and its computational speed is much 
+faster than that of NCBI-BLAST.
+
+H-BLAST has been tested on different software and hardware settings.
+For example, CentOS Linux (v5.4, v6.0 and v7.1) and Ubuntu Linux 
+(v11.04) were used as H-BLAST's benchmark software platforms;
+NVIDIA Tesla C2050 GPU card, NVIDIA Tesla K20/K40 GPU card and NVIDIA 
+Geforce GTX 560 GPU card were used as H-BLAST's benchmark hardware 
+platforms.
+
+H-BLAST is free for academic and non-commercial use. The current implementation 
+is based on NCBI-BLAST, and immigrates some code segments from GPU-BLAST. 
+
+Please cite the authors in any work or product based on this material:
+Weicai Ye, Ying Chen, Yongdong Zhang and Yuesheng Xu, 
+"H-BLAST:  A Fast Protein Sequence Alignment Toolkit on
+Heterogeneous Computers with GPUs".
+
+For any questions and feedback about H-BLAST, contact cai_rcy@mail.tom.com 
+or lnszyd@mail.sysu.edu.cn.
+
+I. Features and requirement.
+=====================
+Features:
+* H-BLAST accelerates BLASTX and BLASTP - basic modules of NCBI-BLAST.
+* H-BLAST can take advantage of multiply CPU cores and GPUs in a computer.
+* H-BLAST offers a performance tuning mechanism for better efficiency 
+  among various CPUs and GPUs combinations, including manual and automatic 
+  tuning.
+* The GPU memory demand for H-BLAST is low, that for on-the-fly results and 
+  alignment results are as less as 1/8 and 1/2 of those in GPU-BLAST, 
+  respectively. Even a Geforce GTX 560 GPU card with 1GB ram can be used 
+  for H-BLAST to accelerate BLASTX.
+* H-BLAST v1.1 does not support PSI BLAST. The substitution matrix is 
+  fixed to the Blosum62 matrix. 
+
+Requirement:
+* Nvidia GPU card with compute capability >= 2.0
+* CUDA version >= 5.5.
+* NCBI-BLAST v2.2.28+
+
+II. Installation
+=====================
+There are two steps to install the H-BLAST: 
+get the latest version from https://github.com/Yeyke/H-BLAST.git, and input 
+"./install -prefix <target>" following instructions. During installation, 
+the source code of "ncbi-blast-2.2.28" will be downloaded and built. It 
+would take about 13 minutes to finish the job.
+
+We assure that the target folder is "/home/test/". After the installation, all H
+-BLAST executable would be installed to the folder "/home/test/bin". The example 
+of commands is listed as follows: 
+
+$ git clone  https://github.com/Yeyke/H-BLAST.git
+$ cd h_blast_v1.1
+$ chmod +x install
+$ ./install -prefix /home/test/
+Do you want to install H-BLAST [yes/no]
+yes: will download and install "ncbi-blast-2.2.28+-src",
+	 and then install H-BLAST executable files to 
+	 /home/test/bin
+no: exit
+yes
+Continuing with the downloading of ncbi-blast-2.2.28+-src...
+Downloading NBCI BLAST
+--2016-07-22 15:17:40--  ftp://ftp.ncbi.nlm.nih.gov/blast/executables/blast+/2.2
+.28/ncbi-blast-2.2.28+-src.tar.gz
+           => 'ncbi-blast-2.2.28+-src.tar.gz'
+Resolving ftp.ncbi.nlm.nih.gov (ftp.ncbi.nlm.nih.gov)... 130.14.250.11, 2607:f22
+0:41e:250::13
+Connecting to ftp.ncbi.nlm.nih.gov (ftp.ncbi.nlm.nih.gov)|130.14.250.11|:21... c
+onnected.
+Logging in as anonymous ... Logged in!
+==> SYST ... done.    ==> PWD ... done.
+==> TYPE I ... done.  ==> CWD (1) /blast/executables/blast+/2.2.28 ... done.
+==> SIZE ncbi-blast-2.2.28+-src.tar.gz ... 13468751
+==> PASV ... done.    ==> RETR ncbi-blast-2.2.28+-src.tar.gz ... done.
+Length: 13468751 (13M) (unauthoritative)
+
+100%[======================================>] 13,468,751   392KB/s   in 41s    
+
+2016-07-22 15:18:32 (318 KB/s) - 'ncbi-blast-2.2.28+-src.tar.gz' saved [13468751]
+
+
+Extracting NCBI BLAST
+.
+
+Configuring ncbi-blast-2.2.28+-src with options:
+
+./configure --without-debug --with-mt --without-sybase --without-ftds --without-
+fastcgi --without-ncbi-c --without-sssdb --without-sss --without-geo --without-s
+p --without-orbacus --without-boost
+.
+If you want to change these options edit the file "install", delete the director
+y ncbi-blast-2.2.28+-src, and rerun install
+.............................
+
+Modifying NCBI BLAST files
+
+.Compiling CUDA code
+............
+Building NCBI BLAST with H-BLAST
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+................................................................................
+............................................
+
+III. Usage
+=====================
+Using H-BLAST includes two steps: the first one is to build databases, the second 
+one is to do sequence alignment.
+
+3.1 Make a sorted NCBI-BLAST format protein database and an H-BLAST format 
+database. "makeblastdbX" and "makeGPUDB" are two executable used. 
+
+"makeblastdbX" builds a sorted NCBI-BLAST format protein database from a fasta 
+format protein database, and its interface is almost identical to the original 
+NCBI-BLAST "makeblastdb" with the additional "-sort_volumes" argument from 
+GPU-BLAST. 
+
+"makeGPUDB" builds an H-BLAST format database used in GPUs. 
+Options of "makeGPUDB" are:
+	 -db <String>
+	   the name of the database to be converted.
+	 -gpu_threads <Integer, 1..65536>
+	   Number of GPU threads per block
+		 Default = '192'
+	 -gpu_blocks <Integer, 1..65536>
+	   Number of GPU blocks per grid
+		 Default = '512'
+
+The following two command lines will be commonly used. Arguments in "[]" are 
+optional, and those in "<>" are the datatype of arguments. 
+
+	$./makeblastdbX -in <String> -out <String> -sort_volumes \
+	 -dbtype prot [-max_file_sz <Integer>MB]
+	$./makeGPUDB -db <input_database> [-gpu_threads <Integer> \ 
+	 -gpu_blocks <Integer>]
+
+These two database are constructed once only. Here are examples of command lines 
+about building the above two format database using "nr" database as input.
+	
+	$./makeblastdbX -in database/nr -out database/sorted_nr -sort_volumes \
+	-max_file_sz 500MB -dbtype prot
+	$./makeGPUDB -db database/sorted_nr 
+
+3.2 Do sequence alignment with "H-BLASTM". "H-BLASTM" is an aligner driver for 
+accelerating BLASTP and BLASTX searching with multiply CPU cores and GPU cards 
+using the H-BLAST aligners.
+
+The interface of H-BLASTM is almost identical to the original NCBI-BLAST with 
+the following additional arguments: 
+	 -module <String, Permissible values: 'blastp' 'blastx'>
+	   The module to be used.
+		 Default = 'blastp'
+	 -gpu_cards <Integer, 1..8> 
+	   Use the no. of GPU cards to accelerate BLASTX/BLASTP
+		 Default = '1'
+	 -screen_out <String>
+	   The file is to log all screen out, including stdout and stderr,
+	   for error checking.
+		 Default = 'outfile'
+		 
+Here is an example about searching "sorted_nr" database with "blastx"
+module, using 8 CPU threads and 2 GPU cards.
+
+	$./H-BLASTM -module blastx -query batch45k_400.fa -db sorted_nr \
+	-out S.out -num_threads 8 -gpu_cards 2 -screen_out check.log
+
+IV. FAQs for the performance tuning
+=====================
+Q1. Are there any relationships among the options "-max_file_sz", "-gpu_threads" 
+and "-gpu_blocks" in "makeblastdbX"?
+Ans: 
+Yes, they are very close. The max. size of a GPU database volume and the 
+number of gpu threads are limited by the memory size on a GPU card. H-BLAST will 
+reject any unacceptable option combos. Furthermore, different option combos would 
+affect speed. In our tests, three option combos are fit for different GPU cards, 
+listed as follows:
+	a. -max_file_sz 250MB -gpu_threads 64 -gpu_blocks 256
+	b. -max_file_sz 500MB -gpu_threads 64 -gpu_blocks 512		
+	c. -max_file_sz 500MB -gpu_threads 192 -gpu_blocks 512	
+Option a & b are for Fermi architecture GPUs, and c is for Kepler GPUs. 
+Option a fits for Fermi GPU cards with 1GB memory, such as NVIDIA Geforce 
+GTX 560; option b fits for Fermi GPU cards with at least 2GB memory, such as 
+NVIDA Tesla C2050; option c fits for Kepler GPU cards with at least 2.5GB memory,
+such as NVIDA Tesla K20/K40. The option c is our default choice.
+
+Q2. What is the file "H-BLAST_runtime_options" used for?
+Ans: 
+For advanced manual performance tuning, H-BLAST presents a configuration file, 
+named "H-BLAST runtime options". A default one would be used if there does not 
+exist a customized one. 
+
+The file "H-BLAST_runtime_options" lists some parameters using in H-BLAST, 
+including the initial load assignment ratio (gpu_db_used_ratio) for GPU cards, 
+using self-adaptive load balancer or not, the computational capacity ratio 
+between a GPU card and a CPU core (CCR), and the number of average HSPs per 
+subject sequence to be saved on GPUs. An example of file content is shown below.
+	
+	///=================== file content in H-BLAST_runtime_options ===========
+	# The gpu_db_used_ratio is
+	1
+	# the gpu_db_used_ratio is fixed or not, '1' for fixed, others for changed by program itself
+	1
+	# computational capacity ratio (CCR) is
+	12
+	# AVG_HSPS_PER_SEQUENCE (when actual avg no. of HSPs is greater than this value, the rest part will be realigned) is
+	20
+	# Using Mem ECC or not, '0' for not, others for yes.
+	0 
+	# Using balancer method '0' or '1', '0' for old, '1' for new
+	1
+	# load factor, default is 4, for ungapped
+	4
+	#chuck size
+	200
+	#base line
+	100
+
+Q3. What combos are used in the file "H-BLAST_runtime_options"?
+Ans: 
+Since the combination of values depend on empirical experience, computer hardware 
+settings and modules, we give an example settings using in our tests. The 
+initial load assignment ratios are listed in tables with different modules.
+ 
+Computer settings: A computer has 2 eight-core Intel Xeon E5-2670 
+	2.8GHz CPUs, 1 NVIDIA Tesla K20 GPUs, and 128GB memory.
+	
+	a) General options for all modules:
+	///=================== file content in H-BLAST_runtime_options ===========
+	# computational capacity ratio (CCR) is
+	12
+	# AVG_SUCCESSFUL_HITS_PER_SEQUENCE is
+	20
+	# Using Mem ECC or not, '0' for not, others for yes.
+	0 
+	# Using balancer method '0' or '1', '0' for old, '1' for new
+	1
+	# load factor, default is 4, for ungapped
+	4
+	#chuck size
+	200
+	#base line
+	100
+
+	b) Options for ungapped blastp 	with one input query
+	///============= table of initial load assignment ratios ===========
+     no. of CPU threads | gpu_db_used_ratio | the gpu_db_used_ratio is fixed or not|    
+        ------------------------------------------------------------------------------
+                  1      |     1             |      1                              |
+        ------------------------------------------------------------------------------
+                  2      |     0.95          |      1                              |
+        ------------------------------------------------------------------------------
+                  4      |     0.9           |      0                              |
+        ------------------------------------------------------------------------------
+                  8      |     0.82          |      0                              |
+        ------------------------------------------------------------------------------
+
+	c) Options for gapped blastp with one input query	
+	///============= table of initial load assignment ratios ===========
+     no. of CPU threads | gpu_db_used_ratio | the gpu_db_used_ratio is fixed or not|    
+        ------------------------------------------------------------------------------
+                  1      |     1             |      1                              |
+        ------------------------------------------------------------------------------
+                  2      |     0.9           |      1                              |
+        ------------------------------------------------------------------------------
+                  4      |     0.85          |      0                              |
+        ------------------------------------------------------------------------------
+                  8      |     0.65          |      0                              |
+        ------------------------------------------------------------------------------	
+
+	d) Options for blastx with one input query	
+	///============= table of initial load assignment ratios ===========
+     no. of CPU threads | gpu_db_used_ratio | the gpu_db_used_ratio is fixed or not|    
+        ------------------------------------------------------------------------------
+                  1      |     1             |      1                              |
+        ------------------------------------------------------------------------------
+                  2      |     0.9           |      1                              |
+        ------------------------------------------------------------------------------
+                  4      |     0.8           |      0                              |
+        ------------------------------------------------------------------------------
+                  8      |     0.6           |      0                              |
+        ------------------------------------------------------------------------------		
+		
+	e) Options for blastx with massive input query	
+	///============= table of initial load assignment ratios ===========
+       GPU | CPU threads | gpu_db_used_ratio | the gpu_db_used_ratio is fixed or not|    
+        ------------------------------------------------------------------------------
+        1  |      1      |     1             |      1                              |
+        ------------------------------------------------------------------------------
+        2  |      2      |     1             |      1                              |
+        ------------------------------------------------------------------------------
+        2  |      8      |     0.7           |      0                              |
+        ------------------------------------------------------------------------------
+        2  |      16     |     0.4           |      0                              |
+        ------------------------------------------------------------------------------		
+		
