@@ -108,7 +108,7 @@ int get_core_count_per_processor()
     size_t nbytes = 1;
     int bytes_read;
     fp=popen("grep \"cpu cores\" /proc/cpuinfo |sort -u |cut -d\":\" -f2", "r");
-   
+
     bytes_read = getline(&line_read, &nbytes, fp);
 
     if(bytes_read>0) ax = atoi(line_read);
@@ -621,6 +621,7 @@ void Read_H_BLAST_GPU_DB(
     if(-1 == ret)
     {
         fputs("fstat failed:\n",stderr);
+        //fputs("The file %s is not existed!\n",GPU_volume_name,stderr);
         all_gpu_abnormally_exit (1);
     }
 
@@ -907,7 +908,7 @@ void  H_BLAST_pre(
 
         init_stream_obj(cuda_device_id);
 
-        gpu_set_cache_config(cudaFuncCachePreferShared);
+        //gpu_set_cache_config(cudaFuncCachePreferShared);
         H_BLAST(cuda_device_id,
                    query, query_info,
                    lookup_wrap,

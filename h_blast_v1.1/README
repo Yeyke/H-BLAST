@@ -1,4 +1,4 @@
-************************ H-BLAST v1.1 release [July. 25, 2016] ******************
+************************ H-BLAST v1.1a release [July. 21, 2017] ******************
 Heterogeneous BLAST (H-BLAST) is a fast parallel search tool for a 
 heterogeneous computer that couples CPUs and GPUs, to accelerate 
 BLASTX and BLASTP - basic modules of NCBI-BLAST. H-BLAST employs a 
@@ -19,12 +19,15 @@ H-BLAST is free for academic and non-commercial use. The current implementation
 is based on NCBI-BLAST, and immigrates some code segments from GPU-BLAST. 
 
 Please cite the authors in any work or product based on this material:
-Weicai Ye, Ying Chen, Yongdong Zhang and Yuesheng Xu, 
-"H-BLAST:  A Fast Protein Sequence Alignment Toolkit on
-Heterogeneous Computers with GPUs".
+Weicai Ye, Ying Chen, Yongdong Zhang, Yuesheng Xu; H-BLAST: a fast protein sequence 
+alignment toolkit on heterogeneous computers with GPUs. Bioinformatics 2017; 33 (8): 
+1130-1138. doi: 10.1093/bioinformatics/btw769.
 
-For any questions and feedback about H-BLAST, contact cai_rcy@mail.tom.com 
+For any questions and feedback about H-BLAST, contact cai_rcy@163.com 
 or lnszyd@mail.sysu.edu.cn.
+
+Compared to the H-BLAST v1.1 release, this version fixes some bugs about
+the file path.
 
 I. Features and requirement.
 =====================
@@ -117,12 +120,38 @@ Building NCBI BLAST with H-BLAST
 ................................................................................
 ............................................
 
-III. Usage
+III. Quick start
+=====================
+The following command line records show the procedure to use the H-BLAST 
+software with “blastp” module (H-BLASTP). There are two steps, making databases 
+and sequence alignment with H-BLAST. All commands are on a CentOS 6.0 with 
+CUDA 5.5, and the login shell is bash. We assume that there are 4 CPU cores 
+and 2 GPU cards on the given computer, and the database nr in fasta format 
+and the query sequence are located at “~/Blast/db” folder. All executable
+program are in the folder "~/hblast/bin". All options used are default values for
+Tesla K20/K40. If you want to tune the performance for your own gpu, please read 
+the chapter V. 
+
+Step one: Make a BLAST Database and a GPU database
+$cd ~/Blast/db
+$.~/hblast/bin/makeblastdbX -in nr -out sorted_nr -sort_volumes \
+	-max_file_sz 500MB -dbtype prot
+$.~/hblast/bin/makeGPUDB -db sorted_nr 
+
+Step two: Sequence alignment with “blastp” module (H-BLASTP) 
+$.~/hblast/bin/H-BLASTM -module blastp -query batch45k_400.fasta -db sorted_nr \
+	-out S.out -num_threads 4 -gpu_cards 2 -screen_out check.log
+
+If "All set!" appears on the screen, the alignment is done! Otherwise, please
+check the hints in the file "check.log".
+
+
+IV. Usage
 =====================
 Using H-BLAST includes two steps: the first one is to build databases, the second 
 one is to do sequence alignment.
 
-3.1 Make a sorted NCBI-BLAST format protein database and an H-BLAST format 
+4.1 Make a sorted NCBI-BLAST format protein database and an H-BLAST format 
 database. "makeblastdbX" and "makeGPUDB" are two executable used. 
 
 "makeblastdbX" builds a sorted NCBI-BLAST format protein database from a fasta 
@@ -156,7 +185,21 @@ about building the above two format database using "nr" database as input.
 	-max_file_sz 500MB -dbtype prot
 	$./makeGPUDB -db database/sorted_nr 
 
-3.2 Do sequence alignment with "H-BLASTM". "H-BLASTM" is an aligner driver for 
+The value of option "-max_file_sz" must be not greater than the following product:
+        @gpu_blocks*@gpu_threads*32kB,
+where @gpu_blocks and @gpu_threads are value of the options "-gpu_blocks" and
+"-gpu_threads", respectively. For example, using the default value of the options 
+"-gpu_blocks" and "-gpu_threads", the value of "-max_file_sz" must no be not greater 
+than 3GB. 
+	
+The optimal values of arguments "-gpu_threads" and "-gpu_blocks" for speed are 
+related to the GPU architecture. The combination of "-max_file_sz", "-gpu_threads" 
+and "-gpu_blocks" not only determines the GPU memory usuage, but also affects the 
+execution speed of H-BLAST. We show some examples on the 1st question of "IV. FAQs 
+for the performance tuning". For untested new GPUs with new architectures, please use 
+these values as reference.
+
+4.2 Do sequence alignment with "H-BLASTM". "H-BLASTM" is an aligner driver for 
 accelerating BLASTP and BLASTX searching with multiply CPU cores and GPU cards 
 using the H-BLAST aligners.
 
@@ -179,7 +222,7 @@ module, using 8 CPU threads and 2 GPU cards.
 	$./H-BLASTM -module blastx -query batch45k_400.fa -db sorted_nr \
 	-out S.out -num_threads 8 -gpu_cards 2 -screen_out check.log
 
-IV. FAQs for the performance tuning
+V. FAQs for the performance tuning
 =====================
 Q1. Are there any relationships among the options "-max_file_sz", "-gpu_threads" 
 and "-gpu_blocks" in "makeblastdbX"?
@@ -202,7 +245,8 @@ Q2. What is the file "H-BLAST_runtime_options" used for?
 Ans: 
 For advanced manual performance tuning, H-BLAST presents a configuration file, 
 named "H-BLAST runtime options". A default one would be used if there does not 
-exist a customized one. 
+exist a customized one, which is in the same directory of the H-BLAST executable 
+files. You can modify this file and get a customized one. 
 
 The file "H-BLAST_runtime_options" lists some parameters using in H-BLAST, 
 including the initial load assignment ratio (gpu_db_used_ratio) for GPU cards, 
@@ -235,9 +279,10 @@ Ans:
 Since the combination of values depend on empirical experience, computer hardware 
 settings and modules, we give an example settings using in our tests. The 
 initial load assignment ratios are listed in tables with different modules.
- 
+
+Case a: This is the computer using for the experiments for the paper. 
 Computer settings: A computer has 2 eight-core Intel Xeon E5-2670 
-	2.8GHz CPUs, 1 NVIDIA Tesla K20 GPUs, and 128GB memory.
+	2.8GHz CPUs, 2 NVIDIA Tesla K20 GPUs, and 128GB memory.
 	
 	a) General options for all modules:
 	///=================== file content in H-BLAST_runtime_options ===========
@@ -306,5 +351,28 @@ Computer settings: A computer has 2 eight-core Intel Xeon E5-2670
         2  |      8      |     0.7           |      0                              |
         ------------------------------------------------------------------------------
         2  |      16     |     0.4           |      0                              |
-        ------------------------------------------------------------------------------		
+        ------------------------------------------------------------------------------	
+
+case b: This is the computer using for the compatible test. Options for different scenario
+      are the same as the case a. 
+Computer settings: A computer has 2 six-core Intel Xeon E5650 
+	2.66GHz CPUs, 4 NVIDIA Tesla C2050 GPUs, and 72GB memory.
+	
+	a) General options for all modules:
+	///=================== file content in H-BLAST_runtime_options ===========
+	# computational capacity ratio (CCR) is
+	8
+	# AVG_SUCCESSFUL_HITS_PER_SEQUENCE is
+	20
+	# Using Mem ECC or not, '0' for not, others for yes.
+	0 
+	# Using balancer method '0' or '1', '0' for old, '1' for new
+	1
+	# load factor, default is 4, for ungapped
+	4
+	#chuck size
+	200
+	#base line
+	100	
+
 		

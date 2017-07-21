@@ -9,7 +9,8 @@ COMMONFLAGS := -c
 #incompatible with some NCBI_BLAST data structures, i.e. the "BlastContextInfo"
 #NVCCFLAGS :=  --compiler-options -fno-strict-aliasing --compiler-options -fno-inline -DUNIX -DCUDA55 -O3 --no-align-double -arch=sm_35 -maxrregcount 56 -Xptxas -dlcm=cg -Xptxas -dscm=cs
 #-Xcompiler -fPIC
-NVCCFLAGS :=  --compiler-options -fno-strict-aliasing --compiler-options -fno-inline -DUNIX -DCUDA55 -O3 --no-align-double -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=sm_30 -gencode=arch=compute_35,code=sm_35 -gencode=arch=compute_35,code=compute_35  -maxrregcount 56  -Xptxas -dlcm=cg -Xptxas -dscm=cs  
+NVCCFLAGS :=  --compiler-options -O0 --no-align-double -Xptxas -v -g -G -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=sm_30 -gencode=arch=compute_35,code=sm_35 -gencode=arch=compute_35,code=compute_35 -DUNIX -DCUDA55
+#NVCCFLAGS :=  --compiler-options -fno-strict-aliasing --compiler-options -fno-inline -DUNIX -DCUDA55 -O3 --no-align-double -gencode=arch=compute_20,code=sm_20 -gencode=arch=compute_30,code=sm_30 -gencode=arch=compute_35,code=sm_35 -gencode=arch=compute_35,code=compute_35 -maxrregcount 56  -Xptxas -dlcm=cg -Xptxas -dscm=cs  
 
 
 all: libhblast.a

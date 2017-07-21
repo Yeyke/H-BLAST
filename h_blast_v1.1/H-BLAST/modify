@@ -306,6 +306,25 @@ else
     exit 1
 fi
 
+
+if [ -f $cxx_dir/src/app/blast/blastp_app.cpp ];  then
+    cp  $cxx_dir/src/app/blast/blastp_app.cpp           $cxx_dir/src/app/blast/blastp_app.cpp.backup
+    cp   ./ncbi_blast_files/blastp_app.cpp                       $cxx_dir/src/app/blast/
+else
+    echo "\"$cxx_dir/src/app/blast/blastp_app.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+if [ -f $cxx_dir/src/app/blast/blastx_app.cpp ];  then
+    cp  $cxx_dir/src/app/blast/blastx_app.cpp           $cxx_dir/src/app/blast/blastx_app.cpp.backup
+    cp   ./ncbi_blast_files/blastx_app.cpp                       $cxx_dir/src/app/blast/
+else
+    echo "\"$cxx_dir/src/app/blast/blastx_app.cpp\" could not be found. Exiting..."
+    exit 1
+fi
+
+
 cp  ./ncbi_blast_files/mmap_storage_manager.h                       $cxx_dir/include/algo/blast/core/
+cp  ./ncbi_blast_files/xstring.h                       $cxx_dir/include/algo/blast/core/
 
 exit 0

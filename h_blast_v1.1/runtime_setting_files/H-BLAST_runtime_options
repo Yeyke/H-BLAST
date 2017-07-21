@@ -1,7 +1,7 @@
 # The gpu_db_used_ratio  is
 1
 # the gpu_db_used_ratio is fixed or not, '1' for fixed, others for changed by program itself
-1
+0
 # computational capacity ratio (CCR) is
 12
 # AVG_HSPS_PER_SEQUENCE (when actual avg no. of HSPs is greater than this value, the rest part will be realigned) is

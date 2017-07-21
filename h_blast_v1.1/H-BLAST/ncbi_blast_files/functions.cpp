@@ -5,6 +5,7 @@
 #define INT_CEIL(a,b) ((a+b-1)/b) /// The ceiling function of an integer r.w.t. an integer b.
 
 #include <math.h>
+#include <algo/blast/core/xstring.h>
 
 
 static double max_cpu_walltime[3];
@@ -142,7 +143,8 @@ void Read_H_BLAST_runtime_options()
 {
     FILE * pFile;
 
-    char* gpu_db_used_ratio_file_name = "./H-BLAST_runtime_options";
+
+    char* gpu_db_used_ratio_file_name = xstrcat(get_dir(blastp_app_path), "H-BLAST_runtime_options");
 
     pFile = fopen ( gpu_db_used_ratio_file_name, "rb" );
 
@@ -356,6 +358,7 @@ void Read_GPU_DB_information_file_preliminary(FILE** GPU_information_file,
 
 void Read_GPU_DB_information_file(const FILE* GPU_information_file,
                                char** GPU_volume_name,
+							   const BlastSeqSrc* seq_src,
                                unsigned long* H_BLAST_database_bytes,
                                Int4* volume_length,
                                Int4* num_sequences_to,
@@ -371,18 +374,23 @@ void Read_GPU_DB_information_file(const FILE* GPU_information_file,
     size_t nbytes = 1;
     Int4 bytes_read = getline(&line_read, &nbytes, GPU_information_file);//Read first line which is a comment
     bytes_read = getline(&line_read, &nbytes, GPU_information_file);//Read the volume name
-    char* GPU_volume_name_temp = (char*)realloc(*GPU_volume_name, bytes_read*sizeof(char) );
+
+	xstring Database_dir=get_dir(BlastSeqSrcGetName(seq_src)); //Read the path of the db
+	char* GPU_volume_name_temp = xstrcat(Database_dir, line_read);// Build the db name with the given path
+
     if( NULL != GPU_volume_name_temp )
     {
+		if(NULL!=*GPU_volume_name)
+			free(*GPU_volume_name);
         *GPU_volume_name = GPU_volume_name_temp;
-        memset(*GPU_volume_name, 0, bytes_read*sizeof(char));
-        memcpy(*GPU_volume_name, line_read, bytes_read - 1);
+        chop_last(GPU_volume_name_temp); //Chop the last "/n"
     }
     else
     {
         printf("Error (re)allocating memory for the GPU information file\n");
         exit(1);
     }
+    free_xstring(&Database_dir);
 
     bytes_read = getline(&line_read, &nbytes, GPU_information_file);//Read comment
     bytes_read = getline(&line_read, &nbytes, GPU_information_file);//Read the size of the volume in bytes
@@ -661,6 +669,12 @@ void ReadH_BLAST_volinfo(const BlastSeqSrc* seq_src, Int4 *num_volumes, Int4** v
     else     //else read the lines line by line to find the "DBLIST" line
     {
 
+        /// New modified 2017
+        /// Get the directory of the db
+        xstring Database_dir=get_dir(BlastSeqSrcGetName(seq_src)); //Read the path of the db
+
+
+
         char* line_read = (char *) malloc( sizeof(char) );
         size_t nbytes = 1;
         Int4 bytes_read = getline(&line_read, &nbytes, aliasfile);//Read firs line
@@ -694,9 +708,12 @@ void ReadH_BLAST_volinfo(const BlastSeqSrc* seq_src, Int4 *num_volumes, Int4** v
                     if( pch[strlen(pch) - 1 ] == '\n')
                         pch[strlen(pch) - 1 ] = '\0'; //replace with the null character
 
-                    char *indexfile_name = (char*)calloc(strlen(pch) + strlen(".pin") + 1, sizeof(char));
+                    /// New modified July 19, 2017
+                    char *indexfile_name = (char*)calloc(strlen(pch) + strlen(".pin") + 1 + Database_dir.str, sizeof(char));
+                    strcat(indexfile_name, Database_dir.str);
                     strcat(indexfile_name, pch);
                     strcat(indexfile_name, ".pin");
+
                     FILE* indexfile = fopen(indexfile_name, "r" );//read index file
 
                     if( NULL == indexfile)
@@ -744,6 +761,8 @@ void ReadH_BLAST_volinfo(const BlastSeqSrc* seq_src, Int4 *num_volumes, Int4** v
         }
 
         free(line_read);
+        free_xstring(&Database_dir);
+
     }
 
     if( NULL != aliasfile )
@@ -1066,9 +1085,11 @@ done:
 
 
         //Create the name of the gpu database
+        /// New modified July 19, 2017
+        xstring  GPU_Database_name_str = get_filename_only(Database_name, strlen(Database_name) );
         if( 1 == num_volumes )
         {
-            int GPU_Database_name_bytes = strlen(Database_name) + strlen(".hDb") + 1;
+            int GPU_Database_name_bytes = GPU_Database_name_str.str_leng + strlen(".hDb") + 1;
             GPU_Database_name_temp = (char*) realloc(GPU_Database_name, GPU_Database_name_bytes*sizeof(char));
             if( NULL != GPU_Database_name_temp )
             {
@@ -1080,12 +1101,13 @@ done:
                 printf("Error (re)allocating memory for the GPU database creation\n");
                 exit(1);
             }
-            strcat(GPU_Database_name, Database_name);
+            strcat(GPU_Database_name, GPU_Database_name_str.str);
+
         }
         else     //if there are more than one volumes then extra characters are needed for the volume number
         {
             sprintf(digits,".%02d",volume);
-            Int4 GPU_Database_name_bytes = strlen(Database_name) + strlen(digits) + strlen(".hDb") + 1;
+            Int4 GPU_Database_name_bytes = GPU_Database_name_str.str_leng  + strlen(digits) + strlen(".hDb") + 1;
             GPU_Database_name_temp = (char*) realloc(GPU_Database_name, GPU_Database_name_bytes*sizeof(char));
             if( NULL != GPU_Database_name_temp )
             {
@@ -1097,13 +1119,17 @@ done:
                 printf("Error (re)allocating memory for the GPU database creation\n");
                 exit(1);
             }
-            strcat(GPU_Database_name, Database_name);
+            strcat(GPU_Database_name, GPU_Database_name_str.str);
             strcat(GPU_Database_name, digits);
         }
+        free_xstring(&GPU_Database_name_str);
 
         strcat(GPU_Database_name, ".hDb");
 
-        FILE* Database_file = fopen( GPU_Database_name,"wb");
+        /// New modified July 19, 2017
+        char*  GPU_Database_name_str_with_path = xstrcat( get_dir(Database_name),  GPU_Database_name);
+        FILE* Database_file = fopen( GPU_Database_name_str_with_path,"wb");
+
         if ( NULL == Database_file )
             printf("GPU Database file cannot be opened for writing\n");
 
@@ -1112,6 +1138,7 @@ done:
 
         fwrite(H_BLAST_database, sizeof(char), H_BLAST_database_bytes, Database_file);
         fclose(Database_file);
+        free(GPU_Database_name_str_with_path);
 
         Write_GPU_information_file(GPU_information_file,
                                    GPU_Database_name,
@@ -1447,6 +1474,7 @@ GPU_BLAST_PreliminarySearchEngine(EBlastProgramType program_number,
 
             Read_GPU_DB_information_file(GPU_information_file,
                                       &GPU_volume_name,
+									  seq_src,
                                       &(h_H_BLAST_database_bytes[NEXT(volume)]), &(volume_length[NEXT(volume)]),
                                       &(num_sequences_to[NEXT(volume)]), &gpu_limit_temp,
                                       &break_limit_temp, &(Group_number[NEXT(volume)]),
