@@ -3,9 +3,9 @@
 #          H-BLAST instances, each instance using one GPU card and serval
 #          CPU threads.
 #
-#  Version 0.3 (July 25, 2016)
+#  Version 0.3a (June, 2018)
 #
-#  Copyright (c) 2015-2016 Weicai Ye
+#  Copyright (c) 2015-2018 Weicai Ye
 #
 #  This software is provided 'as-is', without any express or implied
 #  warranty. In no event will the authors be held liable for any damages
@@ -203,13 +203,13 @@ fi
 
 
 ###################################### split the input fasta file  !!!!!!!!!!!!!!!!!!!!!!!!!
-if [ ! -f "./fasta-splitterA.pl" ]; then 
+if [ ! -f "$(getScriptLocation)/fasta-splitterA.pl" ]; then 
 	echo -e "The file fasta-splitterA.pl is not found!\n"
 	exit 1
 fi
 
 
-tmpIn=`./fasta-splitterA.pl --n-parts ${gpuCards} ${query} | tee xx | grep "OutputPrefix" |cut -d":" -f2`
+tmpIn=`$(getScriptLocation)/fasta-splitterA.pl --n-parts ${gpuCards} ${query} | tee xx | grep "OutputPrefix" |cut -d":" -f2`
 cat xx
 rm xx
 

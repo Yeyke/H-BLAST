@@ -7,8 +7,6 @@ NVCC	:= $(NVCC_PATH)
 COMMONFLAGS := -c 
 # the "--no-align-double" is necessary. Without it the nvcc compiler aligns structure sizes every 8 bytes which is 
 #incompatible with some NCBI_BLAST data structures, i.e. the "BlastContextInfo"
-#NVCCFLAGS :=  --compiler-options -fno-strict-aliasing --compiler-options -fno-inline -DUNIX -DCUDA55 -O3 --no-align-double -arch=sm_35 -maxrregcount 56 -Xptxas -dlcm=cg -Xptxas -dscm=cs
-#-Xcompiler -fPIC
 NVCCFLAGS :=  --compiler-options -fno-strict-aliasing --compiler-options -fno-inline -DUNIX -DCUDA55 -O3 --no-align-double -gencode=arch=compute_20,code=sm_20 -Xptxas -dlcm=cg -Xptxas -dscm=cs  
 
 
